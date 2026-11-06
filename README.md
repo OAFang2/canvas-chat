@@ -23,6 +23,28 @@ uvx canvas-chat launch
 
 Your browser will open automatically to the local server.
 
+## Docker Compose
+
+From the repository root, with Docker Compose v2 (including an Apple Silicon Mac mini):
+
+```bash
+docker compose up -d --build
+```
+
+Open [http://127.0.0.1:7865](http://127.0.0.1:7865). The container runs the image command `pixi run serve` and publishes host port **7865**. It restarts unless you stop it.
+
+Model API keys are configured in the browser Settings panel. Compose does not require keys, admin mode, or a secrets file.
+
+The build uses the host architecture (`linux/arm64` on Apple Silicon). If that build fails while compiling `primp`, uncomment `platform: linux/amd64` in `compose.yaml` and run the same command again.
+
+Stop the app and remove the container:
+
+```bash
+docker compose down
+```
+
+Sessions stay in the browser. This stack has no volumes to delete.
+
 ## Features
 
 - **Infinite Canvas**: Pan, zoom, and navigate your conversations visually

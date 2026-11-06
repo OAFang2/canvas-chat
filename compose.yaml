@@ -1,0 +1,55 @@
+# Home-server stack for this fork. Builds the repo Dockerfile and uses its
+# default command: CMD ["pixi", "run", "serve"] (uvicorn on 0.0.0.0:7865).
+#
+#   docker compose up -d --build
+#   open http://127.0.0.1:7865
+#   docker compose down
+#
+# Host platform by default (Apple Silicon builds linux/arm64). If that build
+# fails on primp, uncomment `platform` below and run the same up command.
+# amd64 images run under emulation on Apple Silicon.
+#
+# API keys are entered in the browser Settings UI. This file does not mount
+# secrets or enable admin mode. Optional later (config.yaml is not in the
+# image; .dockerignore excludes it — do not commit keys):
+#   env_file:
+#     - .env
+#   environment:
+#     CANVAS_CHAT_ADMIN_MODE: "true"
+#     CANVAS_CHAT_CONFIG_PATH: /app/config.yaml
+#   volumes:
+#     - ./config.yaml:/app/config.yaml:ro
+# `pixi run serve` reads those variables when they are set (see app.py).
+#
+# Optional reload is not the default and does not use a host .venv. `pixi run
+# dev` listens on 127.0.0.1 inside the container, so the published port would
+# miss it. To reload from a source bind mount, override the command:
+#   command: ["pixi", "run", "python", "-m", "uvicorn", "canvas_chat.app:app", "--reload", "--host", "0.0.0.0", "--port", "7865"]
+#   volumes:
+#     - ./src:/app/src
+
+name: canvas-chat
+
+services:
+  canvas-chat:
+    image: canvas-chat:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # platform: linux/amd64
+    ports:
+      # Host port 7865 matches the existing local helper.
+      - "7865:7865"
+    restart: unless-stopped
+    # Probe the pixi env interpreter directly. A second `pixi run` can contend
+    # with the server process. GET /health stays 200 when optional Ollama is down.
+    healthcheck:
+      test:
+        - CMD
+        - /app/.pixi/envs/default/bin/python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:7865/health', timeout=5).read()
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 40s
