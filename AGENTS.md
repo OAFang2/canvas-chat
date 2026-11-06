@@ -93,6 +93,8 @@ canvas-chat/
 │           └── example-plugins/ # Example plugins (test, smart-fix, poll node)
 ├── tests/                    # Test files
 ├── docs/                     # Documentation (Diataxis)
+├── compose.yaml              # Home-server Compose: build Dockerfile, port 7865, no secrets
+├── Dockerfile                # pixi image; EXPOSE 7865; CMD ["pixi", "run", "serve"]
 ├── modal_app.py              # Modal deployment config
 └── pyproject.toml            # Project config (pixi)
 ```
@@ -219,6 +221,8 @@ canvas-chat/
 | `src/canvas_chat/realtime_providers/openai.py`   | OpenAI Realtime 2 bridge           | OpenAI WebSocket connection, event mapping, tool format conversion             |
 | `src/canvas_chat/realtime_providers/gemini.py`   | Gemini Live API 3.1 bridge         | Gemini WebSocket connection, event mapping, tool format conversion             |
 | `modal_app.py`                                  | Modal deployment config            | `pip_install` list MUST include runtime deps imported by `canvas_chat.app` (e.g. `llamabot`, matching `pyproject.toml`) |
+| `Dockerfile`                                    | Pixi runtime image                 | `EXPOSE 7865`, `CMD ["pixi", "run", "serve"]` (`--host 0.0.0.0`). Do not rewrite it for Compose. amd64 platform is only a primp workaround. |
+| `compose.yaml`                                  | Home-server Compose project        | Project name `canvas-chat`, build the Dockerfile, map `7865:7865`, `restart: unless-stopped`. No API keys or admin mode by default. |
 
 ### Key constants and their locations
 
@@ -1413,6 +1417,21 @@ Common issues to watch for:
 - **Why generic:** Follows pluginification principle - plugins can add nested objects without core changes
 - **Special cases:** `position`, `cells`, `metadata` have explicit handling for backward compatibility, but generic handler covers all other nested objects
 - **When to apply:** No action needed - generic handler automatically preserves any nested object structure
+
+## Docker Compose (home server)
+
+`compose.yaml` is the declarative run path for a small always-on host (for example an Apple Silicon Mac mini) next to other Compose projects. It builds the existing `Dockerfile` and does not override `CMD ["pixi", "run", "serve"]` (`pyproject.toml` task `serve`: uvicorn on `0.0.0.0:7865`). Project name is `canvas-chat`. Host port is **7865**.
+
+```bash
+docker compose up -d --build
+docker compose down
+```
+
+Open `http://127.0.0.1:7865`. Keys stay in the browser Settings UI. Do not add admin mode, `env_file`, or secret mounts to the default service. Optional admin-mode passthrough is commented in `compose.yaml` only.
+
+Build for the host platform. If the arm64 image fails on `primp`, uncomment `platform: linux/amd64` in `compose.yaml` and rebuild. Do not switch the default to a host `.venv` bind mount. `pixi run dev` binds `127.0.0.1` and is the wrong Compose command unless `--host 0.0.0.0` is set explicitly.
+
+`docker compose down -v` is unnecessary here (no named volumes). Do not run it out of habit.
 
 ## Modal Deployment
 
